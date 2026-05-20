@@ -113,23 +113,39 @@ def search(endereco, radius, mode, output, limit, save, demo):
 @click.option("--month", type=int, default=None, help="Mês dos dados RF (ex: 4).")
 @click.option("--yes", "-y", is_flag=True, default=False,
               help="Pular confirmação interativa.")
-def import_data(year, month, yes):
+@click.option("--source-dir", type=click.Path(exists=True, file_okay=False),
+              default=None,
+              help=(
+                  "Pasta com os ZIPs baixados manualmente (Empresas0.zip … "
+                  "Estabelecimentos9.zip). Use quando dados.rfb.gov.br estiver "
+                  "inacessível."
+              ))
+def import_data(year, month, yes, source_dir):
     """Baixa e importa dados abertos da Receita Federal.
 
     Download de ~5 GB por competência. Necessário apenas uma vez.
     Após o import, use 'search --mode full' para resultados completos.
+
+    Se o servidor estiver inacessível, baixe os ZIPs pelo navegador e use:
+
+      python main.py import --source-dir C:\\Downloads\\rf_data
     """
     from src.client_finder.rf_importer import run_import
+    from pathlib import Path
 
     console.print("[bold]client_finder — Import Receita Federal[/bold]")
-    console.print(
-        "[yellow]Atenção:[/yellow] o download pode levar 30-60 minutos "
-        "e requer ~10 GB de espaço em disco.\n"
-    )
-    if not yes:
-        click.confirm("Deseja continuar?", abort=True)
 
-    run_import(year=year, month=month)
+    if source_dir:
+        console.print(f"[cyan]Usando arquivos locais em:[/cyan] {source_dir}\n")
+    else:
+        console.print(
+            "[yellow]Atencao:[/yellow] o download pode levar 30-60 minutos "
+            "e requer ~10 GB de espaco em disco.\n"
+        )
+        if not yes:
+            click.confirm("Deseja continuar?", abort=True)
+
+    run_import(year=year, month=month, source_dir=Path(source_dir) if source_dir else None)
 
 
 @cli.command()

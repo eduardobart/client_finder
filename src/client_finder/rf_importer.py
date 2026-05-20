@@ -167,9 +167,66 @@ def _import_estabelecimentos(zip_path: Path):
                     )
 
 
-def run_import(year: int | None = None, month: int | None = None):
-    """Full import pipeline: download RF files -> parse -> populate SQLite."""
+def _find_local_zip(source_dir: Path, prefix: str, index: int) -> Path | None:
+    """Find a ZIP file matching patterns like Empresas0.zip or Empresas0-2025-04.zip."""
+    patterns = [
+        f"{prefix}{index}.zip",
+        f"{prefix}{index}-*.zip",
+    ]
+    for pat in patterns:
+        matches = sorted(source_dir.glob(pat))
+        if matches:
+            return matches[0]
+    return None
+
+
+def run_import(
+    year: int | None = None,
+    month: int | None = None,
+    source_dir: Path | None = None,
+):
+    """Full import pipeline: download RF files -> parse -> populate SQLite.
+
+    If source_dir is given, ZIPs are read from that directory instead of
+    being downloaded. Useful when the RF server is unreachable.
+    """
     init_db()
+
+    if source_dir:
+        source_dir = Path(source_dir)
+        console.print(f"[bold]Importando dados RF de pasta local:[/bold] {source_dir}")
+        console.print(f"[dim]Banco de dados: {DB_PATH}[/dim]")
+        console.print()
+
+        console.print("[bold cyan]Fase 1/2 — Empresas (porte médio/grande)[/bold cyan]")
+        for i in range(10):
+            zip_path = _find_local_zip(source_dir, "Empresas", i)
+            if zip_path is None:
+                console.print(f"  [yellow]Empresas{i}.zip não encontrado em {source_dir} — pulando[/yellow]")
+                continue
+            console.print(f"  Importando {zip_path.name}...")
+            try:
+                _import_empresas(zip_path)
+            except Exception as e:
+                console.print(f"  [yellow]Aviso: Empresas{i} — {e}[/yellow]")
+
+        console.print()
+        console.print("[bold cyan]Fase 2/2 — Estabelecimentos (ativos)[/bold cyan]")
+        for i in range(10):
+            zip_path = _find_local_zip(source_dir, "Estabelecimentos", i)
+            if zip_path is None:
+                console.print(f"  [yellow]Estabelecimentos{i}.zip não encontrado em {source_dir} — pulando[/yellow]")
+                continue
+            console.print(f"  Importando {zip_path.name}...")
+            try:
+                _import_estabelecimentos(zip_path)
+            except Exception as e:
+                console.print(f"  [yellow]Aviso: Estabelecimentos{i} — {e}[/yellow]")
+
+        console.print()
+        console.print("[bold green]OK Import concluído.[/bold green]")
+        console.print("[dim]Execute 'search' para buscar empresas por endereço.[/dim]")
+        return
 
     if year and month:
         ym = f"{year:04d}-{month:02d}"
@@ -183,6 +240,7 @@ def run_import(year: int | None = None, month: int | None = None):
 
     # Step 1: download + import Empresas files (10 shards)
     console.print("[bold cyan]Fase 1/2 — Empresas (porte médio/grande)[/bold cyan]")
+    download_errors = 0
     for i in range(10):
         url = f"{RF_BASE_URL}/{ym}/Empresas{i}.zip"
         dest = DATA_DIR / f"Empresas{i}-{ym}.zip"
@@ -192,6 +250,7 @@ def run_import(year: int | None = None, month: int | None = None):
             console.print(f"  Importando Empresas{i}...")
             _import_empresas(dest)
         except Exception as e:
+            download_errors += 1
             console.print(f"  [yellow]Aviso: Empresas{i} — {e}[/yellow]")
 
     # Step 2: download + import Estabelecimentos files (10 shards)
@@ -206,8 +265,21 @@ def run_import(year: int | None = None, month: int | None = None):
             console.print(f"  Importando Estabelecimentos{i}...")
             _import_estabelecimentos(dest)
         except Exception as e:
+            download_errors += 1
             console.print(f"  [yellow]Aviso: Estabelecimentos{i} — {e}[/yellow]")
 
     console.print()
-    console.print("[bold green]OK Import concluído.[/bold green]")
-    console.print("[dim]Execute 'search' para buscar empresas por endereço.[/dim]")
+    if download_errors == 20:
+        console.print("[bold red]ERRO: Nenhum arquivo foi baixado.[/bold red]")
+        console.print()
+        console.print("O servidor dados.rfb.gov.br está inacessível nesta rede.")
+        console.print("Alternativas:")
+        console.print(f"  1. Baixe os arquivos manualmente pelo navegador:")
+        console.print(f"     [cyan]https://dados.rfb.gov.br/CNPJ/dados_abertos_cnpj/{ym}/[/cyan]")
+        console.print(f"     Baixe Empresas0.zip a Empresas9.zip e Estabelecimentos0.zip a Estabelecimentos9.zip")
+        console.print(f"  2. Salve todos os ZIPs numa pasta (ex: C:\\Downloads\\rf_data)")
+        console.print(f"  3. Execute:")
+        console.print(f'     [bold]python main.py import --source-dir "C:\\Downloads\\rf_data"[/bold]')
+    else:
+        console.print("[bold green]OK Import concluído.[/bold green]")
+        console.print("[dim]Execute 'search' para buscar empresas por endereço.[/dim]")

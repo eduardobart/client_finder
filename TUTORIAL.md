@@ -101,6 +101,8 @@ Para buscar empresas reais, é necessário baixar os dados oficiais da Receita F
 
 > **Atenção:** este download é grande (~5 GB) e pode levar 30 a 60 minutos.
 
+#### Opção A — Download automático (requer acesso ao site da Receita Federal)
+
 1. Abra um **novo terminal** na pasta do projeto (repita o Passo 3)
 2. Digite o comando:
    ```
@@ -108,6 +110,23 @@ Para buscar empresas reais, é necessário baixar os dados oficiais da Receita F
    ```
 3. Aguarde o download e importação terminar
 4. Volte para a interface web, selecione **"Full (Receita Federal)"** e busque normalmente
+
+#### Opção B — Download manual (quando o site da RF estiver inacessível)
+
+Se o comando acima travar com erro de conexão, baixe os arquivos manualmente pelo navegador:
+
+1. Abra o **Google Chrome** ou outro navegador
+2. Acesse o endereço (troque `2025-04` pelo mês mais recente disponível):
+   ```
+   https://dados.rfb.gov.br/CNPJ/dados_abertos_cnpj/2025-04/
+   ```
+3. Baixe todos os arquivos **Empresas0.zip a Empresas9.zip** e **Estabelecimentos0.zip a Estabelecimentos9.zip** (total de 20 arquivos)
+4. Salve todos na **mesma pasta**, por exemplo: `C:\Downloads\rf_data`
+5. No terminal do projeto, execute:
+   ```
+   python main.py import --source-dir "C:\Downloads\rf_data"
+   ```
+6. Aguarde a importação terminar (não precisa de internet nesta etapa)
 
 ---
 
@@ -131,7 +150,8 @@ Para usar o Client Finder em outro momento:
 | `python` não é reconhecido | Reinstale o Python marcando "Add Python to PATH" |
 | `streamlit` não é reconhecido | Rode novamente o Passo 4 |
 | Página não abre no navegador | Acesse manualmente http://localhost:8501 |
-| Erro no import da Receita Federal | Verifique sua conexão e tente novamente |
+| Erro no import (timeout/conexão) | Use a Opção B (download manual via navegador) |
+| Import concluído mas sem resultados | Execute `python main.py status` para verificar a base |
 
 ---
 
