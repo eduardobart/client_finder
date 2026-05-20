@@ -30,11 +30,12 @@ def cli():
 @click.option("--radius", "-r", default=5.0, show_default=True,
               help="Raio de busca em km.")
 @click.option("--mode", "-m",
-              type=click.Choice(["quick", "full"], case_sensitive=False),
+              type=click.Choice(["quick", "full", "cnpja"], case_sensitive=False),
               default="quick", show_default=True,
               help=(
                   "quick = OpenStreetMap/Overpass (sem setup, menos completo). "
-                  "full = base RF local (requer 'import', completo)."
+                  "full = base RF local (requer 'import', completo). "
+                  "cnpja = CNPJA API (requer chave gratuita em cnpja.com)."
               ))
 @click.option("--output", "-o",
               type=click.Choice(["table", "json", "csv"], case_sensitive=False),
@@ -46,7 +47,10 @@ def cli():
               help="Salvar resultado em arquivo (json ou csv).")
 @click.option("--demo", is_flag=True, default=False,
               help="Modo demonstração: mostra dados fictícios sem precisar de rede ou import.")
-def search(endereco, radius, mode, output, limit, save, demo):
+@click.option("--api-key", envvar="CNPJA_API_KEY", default=None,
+              help="Chave de API CNPJA (necessário para --mode cnpja). "
+                   "Pode ser definida via variável de ambiente CNPJA_API_KEY.")
+def search(endereco, radius, mode, output, limit, save, demo, api_key):
     """Busca empresas médio/grande porte num raio a partir de ENDEREÇO.
 
     Exemplos:
@@ -71,6 +75,7 @@ def search(endereco, radius, mode, output, limit, save, demo):
                 mode=mode.lower(),
                 limit=limit,
                 verbose=True,
+                cnpja_key=api_key,
             )
         except ValueError as e:
             console.print(f"[bold red]Erro:[/bold red] {e}")

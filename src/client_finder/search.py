@@ -131,6 +131,7 @@ def search(
     mode: str = "quick",
     limit: int = DEFAULT_LIMIT,
     verbose: bool = True,
+    cnpja_key: str | None = None,
 ) -> SearchResult:
     """
     Find medium/large companies within radius_km of address.
@@ -138,9 +139,10 @@ def search(
     Args:
         address: Human-readable address (PT-BR).
         radius_km: Search radius in kilometers.
-        mode: 'quick' (Overpass) or 'full' (local RF database).
+        mode: 'quick' (Overpass), 'full' (local RF database), or 'cnpja' (CNPJA API).
         limit: Max number of results.
         verbose: Print progress messages.
+        cnpja_key: API key for CNPJA mode (required when mode='cnpja').
     """
     if verbose:
         console.print(f"\n[bold]Geocodificando endereço:[/bold] {address}")
@@ -153,6 +155,8 @@ def search(
 
     if mode == "full":
         return _search_full(address, lat, lng, radius_km, limit, verbose)
+    elif mode == "cnpja":
+        return _search_cnpja(address, lat, lng, radius_km, limit, verbose, cnpja_key)
     else:
         return _search_quick(address, lat, lng, radius_km, limit, verbose)
 
@@ -200,6 +204,49 @@ def _search_quick(
             "  [dim]Nota: modo quick usa OSM (dados incompletos). "
             "Use --mode full para resultados completos.[/dim]"
         )
+
+    return SearchResult(
+        endereco_buscado=address,
+        lat_centro=lat,
+        lng_centro=lng,
+        raio_km=radius_km,
+        total=len(empresas),
+        empresas=empresas,
+    )
+
+
+def _search_cnpja(
+    address: str,
+    lat: float,
+    lng: float,
+    radius_km: float,
+    limit: int,
+    verbose: bool,
+    api_key: str | None,
+) -> SearchResult:
+    from .cnpja import search_cnpja
+
+    if not api_key:
+        raise RuntimeError(
+            "Modo CNPJA requer uma chave de API.\n"
+            "  1. Cadastre-se gratuitamente em https://cnpja.com\n"
+            "  2. Copie sua chave de API\n"
+            "  3. Use --api-key 'sua-chave' ou defina CNPJA_API_KEY no ambiente"
+        )
+
+    if verbose:
+        console.print("[cyan]Consultando CNPJA API...[/cyan]")
+        console.print(
+            "  [dim]Custo estimado: ~1 crédito por 10 empresas encontradas no município.[/dim]"
+        )
+
+    try:
+        empresas = search_cnpja(lat, lng, radius_km, api_key, limit=limit)
+    except RuntimeError as e:
+        raise
+
+    if verbose:
+        console.print(f"  [dim]Encontradas {len(empresas)} empresas no raio de {radius_km} km.[/dim]")
 
     return SearchResult(
         endereco_buscado=address,

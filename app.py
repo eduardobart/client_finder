@@ -38,17 +38,32 @@ with st.sidebar:
 
     modo = st.radio(
         "Fonte de dados",
-        options=["Demo (sem internet)", "Quick (OpenStreetMap)", "Full (Receita Federal)"],
+        options=[
+            "Demo (sem internet)",
+            "CNPJA (API gratuita)",
+            "Quick (OpenStreetMap)",
+            "Full (Receita Federal)",
+        ],
         index=0,
     )
 
+    cnpja_key = None
+    if "CNPJA" in modo:
+        cnpja_key = st.text_input(
+            "Chave de API CNPJA",
+            type="password",
+            placeholder="Cole sua chave aqui",
+            help="Cadastro gratuito em cnpja.com — vá em 'Minha Conta' para copiar a chave.",
+        )
+
     limite = st.number_input("Máx. resultados", min_value=10, max_value=1000, value=100, step=10)
 
-    buscar = st.button("🔍 Buscar", type="primary", use_container_width=True)
+    buscar = st.button("Buscar", type="primary", use_container_width=True)
 
     st.divider()
     st.caption("**Modos:**")
     st.caption("• **Demo** – dados fictícios para testar a tela")
+    st.caption("• **CNPJA** – API gratuita, cadastro em cnpja.com")
     st.caption("• **Quick** – OpenStreetMap (sem setup, parcial)")
     st.caption("• **Full** – Receita Federal local (requer `import`)")
 
@@ -66,6 +81,14 @@ with st.spinner("Buscando empresas..."):
         if "Demo" in modo:
             result = search_demo(endereco, radius_km=raio)
             st.warning("Modo DEMO — dados fictícios para validação da interface.")
+        elif "CNPJA" in modo:
+            if not cnpja_key:
+                st.error("Informe sua chave de API CNPJA. Cadastro gratuito em cnpja.com")
+                st.stop()
+            result = do_search(
+                endereco, radius_km=raio, mode="cnpja",
+                limit=limite, verbose=False, cnpja_key=cnpja_key,
+            )
         elif "Quick" in modo:
             result = do_search(endereco, radius_km=raio, mode="quick", limit=limite, verbose=False)
         else:
